@@ -1,2 +1,3 @@
 # personal_playground
-This repository is to manage personal project or just code.
+
+* 2025. 07. 21 ~ 25 : Snowflake Pro core Certification
