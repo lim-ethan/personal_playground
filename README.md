@@ -6,3 +6,4 @@
   <img src="./snowflake/snowpro_certification.png" width="600"/>
 </p>
 
+### 2025. 07. 30 ~ : 정보처리기사
