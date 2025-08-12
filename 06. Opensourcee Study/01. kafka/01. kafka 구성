@@ -1,0 +1,139 @@
+# Apache Kafka 정리
+
+## 1. 개요
+Apache Kafka는 **분산 스트리밍 플랫폼**으로, 대규모 데이터 스트림을 **실시간**으로 수집·저장·처리·전달하는 데 사용
+주요 특징:
+- **고성능**: 초당 수백만 건 이상의 메시지 처리 가능
+- **확장성**: 클러스터 노드 추가로 수평 확장 용이
+- **내결함성**: 데이터 복제(replication)로 장애 시 복구 가능
+- **유연성**: 실시간 처리뿐만 아니라 로그 저장소 역할도 가능
+
+---
+
+## 2. 구성 요소
+
+### 2.1 Broker
+- Kafka 서버 인스턴스 하나를 의미.
+- 하나의 클러스터에는 여러 Broker가 존재.
+- 각 Broker는 토픽 데이터를 저장·관리.
+- 기본적으로 각 Broker는 **고유 ID**를 가진다.
+
+### 2.2 Topic
+- 메시지가 저장되는 **카테고리 또는 채널**.
+- 각 Topic은 **여러 Partition**으로 나뉜다.
+- Partition은 병렬 처리를 가능하게 하며, 순서를 보장.
+
+### 2.3 Partition
+- 토픽의 데이터 저장 단위.
+- 각 Partition은 오프셋(Offset)이라는 순차 번호를 가진 메시지들의 집합.
+- Partition은 **리더(Leader)**와 **팔로워(Follower)**로 구성:
+  - Leader: 읽기/쓰기 요청 처리
+  - Follower: Leader 복제본 유지
+
+### 2.4 Producer
+- 데이터를 Kafka Topic에 **발행(publish)**하는 클라이언트 애플리케이션.
+- 메시지를 어떤 Partition에 보낼지 결정하는 파티셔너(Partitioner) 사용.
+
+### 2.5 Consumer
+- Kafka Topic에서 데이터를 **구독(subscribe)**하고 읽는 클라이언트 애플리케이션.
+- **Consumer Group**을 사용하여 여러 Consumer가 메시지를 나눠 읽을 수 있음.
+
+### 2.6 Zookeeper
+- Kafka 메타데이터 관리 및 클러스터 코디네이션 담당 (Kafka 2.8부터는 KRaft 모드로 Zookeeper 없이 운영 가능).
+- Broker 등록, Controller 선출, 토픽·파티션 메타데이터 저장.
+
+---
+
+## 3. 동작 원리
+
+1. **Producer → Topic → Partition 저장**
+   - Producer는 메시지를 지정된 Topic의 특정 Partition에 전송.
+   - Partition 내에서는 메시지가 **Append-only**로 저장.
+   
+2. **데이터 복제**
+   - Partition Leader는 데이터를 Follower Partition에 복제.
+   - 복제 개수(`replication.factor`)에 따라 내결함성 보장.
+
+3. **Consumer Group 읽기**
+   - Consumer Group의 각 Consumer는 서로 다른 Partition을 읽음.
+   - Offset을 저장하여 이후 재시작 시 이어서 읽을 수 있음.
+
+4. **Commit & Acknowledgement**
+   - Consumer가 메시지를 읽으면 **오프셋 커밋**.
+   - Producer는 **acks** 설정(`0`, `1`, `all`)에 따라 메시지 전송 성공 여부 확인.
+   - acks=0 : Producer가 Leader의 응답을 기다리지 않음 (최저 지연, 데이터 유실 가능성 높음)
+   - acks=1 : Leader Partition이 자신의 로컬 로그에 기록한 뒤 성공 응답을 반환. Follower 복제 완료 여부는 확인하지 않음
+   - acks=all 또는 acks=-1 : Leader가 ISR(In-Sync Replica) 내 모든 Follower가 메시지를 기록할 때까지 기다린 뒤 성공 응답 반환
+
+---
+
+
+## 4. 주요 설정 & 종속성
+
+### 4.1 필수 종속성
+- **Java** (Kafka는 JVM 기반)
+- **Zookeeper** (KRaft 모드 사용 시 생략 가능)
+- OS 권장: Linux (파일 핸들, 네트워크 처리량 고려)
+
+### 4.2 중요한 설정 파라미터
+- `num.partitions`: 토픽 기본 파티션 수
+- `replication.factor`: 복제 개수
+- `retention.ms` / `retention.bytes`: 메시지 보존 기간·크기
+- `acks`: 메시지 전송 성공 보장 수준
+- `enable.auto.commit`: Consumer 오프셋 자동 커밋 여부
+
+---
+
+## 5. 운영 고려사항
+- **모니터링**: Prometheus + Grafana, Kafka Manager
+- **보안**: SSL/TLS, SASL 인증, ACL 설정
+- **확장성**: 브로커 추가로 클러스터 확장
+- **백업/복구**: MirrorMaker, Confluent Replicator 활용
+
+---
+## 06. sh script
+
+### 6.1. 토픽 생성
+
+```bash
+kafka-topics.sh \
+  --bootstrap-server localhost:9092 \
+  --create \
+  --topic my-topic \
+  --partitions 3 \
+  --replication-factor 1
+```
+
+### 6.2. 토픽 리스트 확인
+
+```bash
+kafka-topics.sh \
+  --bootstrap-server localhost:9092 \
+  --list
+```
+
+### 6.3. 메시지 Produce
+
+```bash
+kafka-console-producer.sh \
+  --broker-list localhost:9092 \
+  --topic my-topic
+```
+
+### 6.4 메세지 구독
+
+```bash
+kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic my-topic \
+  --from-beginning
+```
+
+### 6.5 컨슈머 그룹으로 메세지 구독
+```bash
+kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic my-topic \
+  --group my-group \
+  --from-beginning
+```
