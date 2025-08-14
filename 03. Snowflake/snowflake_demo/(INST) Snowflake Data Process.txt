@@ -1,0 +1,7 @@
+[CLOUD]
+1. RDS 생성 및 데이터 적재 -- AWS
+2. RDS Snapshot 데이터 적재용 S3 생성 -- AWS
+3. File Format 생성 -- Snowflake
+4. Storage Integration 생성 -- Snowflake (SQL Worksheet)
+5. External Stage 생성 -- Snowflake (SQL Worksheet)
+6. External Table 생성 -- Snowflake (SQL Worksheet)
