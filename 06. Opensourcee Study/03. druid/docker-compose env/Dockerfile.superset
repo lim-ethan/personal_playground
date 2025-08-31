@@ -1,0 +1,17 @@
+FROM apache/superset:latest
+
+USER root
+
+# 필수 패키지 설치
+RUN apt-get update && apt-get install -y git vim curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Superset에서 필요한 외부 패키지 설치
+RUN pip install --no-cache-dir Flask-CORS pydruid
+
+# superset 유저로 전환
+USER superset
+
+# Superset 설정 복사
+COPY superset_config.py /app/pythonpath/superset_config.py
+ENV SUPERSET_CONFIG_PATH=/app/pythonpath/superset_config.py
